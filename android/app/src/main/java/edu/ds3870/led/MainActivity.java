@@ -48,8 +48,29 @@ public class MainActivity extends Activity {
     private BluetoothGattCharacteristic led;
     private TextView status;
     private Button connect;
-    private Button toggle;
-    private boolean ledOn;
+    private enum LedColor {
+        OFF(0, "Off"), RED(1, "Red"), GREEN(2, "Green"), BLUE(3, "Blue");
+
+        final byte code;
+        final String label;
+
+        LedColor(int code, String label) {
+            this.code = (byte) code;
+            this.label = label;
+        }
+
+        static LedColor fromCode(byte code) {
+            for (LedColor color : values()) {
+                if (color.code == code) {
+                    return color;
+                }
+            }
+            return null;
+        }
+    }
+
+    private final Button[] colorButtons = new Button[LedColor.values().length];
+    private LedColor pendingColor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,10 +82,16 @@ public class MainActivity extends Activity {
         status = new TextView(this);
         status.setTextSize(22);
         connect = new Button(this);
-        toggle = new Button(this);
+
         layout.addView(status);
         layout.addView(connect);
-        layout.addView(toggle);
+        for (LedColor color : LedColor.values()) {
+            Button button = new Button(this);
+            button.setText(color.label);
+            button.setOnClickListener(view -> writeLed(color));
+            colorButtons[color.ordinal()] = button;
+            layout.addView(button);
+        }
         setContentView(layout);
         connect.setOnClickListener(view -> {
             if (gatt != null) {
@@ -73,7 +100,6 @@ public class MainActivity extends Activity {
                 connectToBoard();
             }
         });
-        toggle.setOnClickListener(view -> writeLed());
         reset("Disconnected");
     }
 
@@ -222,27 +248,36 @@ public class MainActivity extends Activity {
             if (gatt != connection) {
                 return;
             }
-            if (result != BluetoothGatt.GATT_SUCCESS || value == null || value.length != 1
-                    || (value[0] != 0 && value[0] != 1)) {
+            LedColor actual = value != null && value.length == 1
+                    ? LedColor.fromCode(value[0]) : null;
+            if (result != BluetoothGatt.GATT_SUCCESS || actual == null) {
                 reset("Could not read the LED state.");
                 return;
             }
             main.removeCallbacks(connectTimeout);
             main.removeCallbacks(updateTimeout);
-            ledOn = value[0] == 1;
-            status.setText(ledOn ? "Connected · LED on" : "Connected · LED off");
+            boolean matched = pendingColor == null || pendingColor == actual;
+            pendingColor = null;
+            status.setText("Connected · LED " + actual.label
+                    + (matched ? "" : " · Color change not applied"));
             connect.setText("Disconnect");
             connect.setEnabled(true);
-            toggle.setText(ledOn ? "Turn LED off" : "Turn LED on");
-            toggle.setEnabled(true);
+            setColorsEnabled(true);
         });
     }
 
+    private void setColorsEnabled(boolean enabled) {
+        for (Button button : colorButtons) {
+            button.setEnabled(enabled);
+        }
+    }
+
     @SuppressWarnings("deprecation")
-    private void writeLed() {
-        byte[] value = {(byte) (ledOn ? 0 : 1)};
+    private void writeLed(LedColor color) {
+        pendingColor = color;
+        byte[] value = {color.code};
         status.setText("Updating LED…");
-        toggle.setEnabled(false);
+        setColorsEnabled(false);
         main.postDelayed(updateTimeout, 8000);
         boolean started;
         if (Build.VERSION.SDK_INT >= 33) {
@@ -281,8 +316,8 @@ public class MainActivity extends Activity {
         status.setText(message);
         connect.setText("Connect");
         connect.setEnabled(true);
-        toggle.setText("Turn LED on");
-        toggle.setEnabled(false);
+        pendingColor = null;
+        setColorsEnabled(false);
     }
 
     @Override

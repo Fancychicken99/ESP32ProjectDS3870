@@ -2,7 +2,10 @@
 #include <BLEServer.h>
 
 constexpr uint8_t kNeoPixelPin = 48;
-constexpr uint8_t kRedLevel = 16;
+constexpr uint8_t kLevel = 16;
+// One-byte BLE values: off, red, green, blue.
+constexpr uint8_t kColors[][3] = {{0, 0, 0}, {kLevel, 0, 0},
+                                  {0, kLevel, 0}, {0, 0, kLevel}};
 constexpr char kDeviceName[] = "DS3870 LED";
 constexpr char kServiceId[] = "ac4a9f3c-6c4a-4f33-aaae-b650f17d6390";
 constexpr char kLedStateId[] = "ac4a9f3c-6c4a-4f33-aaae-b650f17d6391";
@@ -12,9 +15,13 @@ class LedStateCallbacks : public BLECharacteristicCallbacks {
 
   void onWrite(BLECharacteristic *characteristic) override {
     const auto value = characteristic->getValue();
-    if (value.length() == 1 && (value[0] == 0 || value[0] == 1)) {
-      state = value[0];
-      rgbLedWrite(kNeoPixelPin, state == 1 ? kRedLevel : 0, 0, 0);
+    if (value.length() == 1) {
+      const uint8_t requested = static_cast<uint8_t>(value[0]);
+      if (requested < sizeof(kColors) / sizeof(kColors[0])) {
+        state = requested;
+        const auto& rgb = kColors[state];
+        rgbLedWrite(kNeoPixelPin, rgb[0], rgb[1], rgb[2]);
+      }
     }
     characteristic->setValue(&state, sizeof(state));
   }

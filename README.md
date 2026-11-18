@@ -76,8 +76,8 @@ The LED starts off. The board advertises as **DS3870 LED**.
 | --- | --- |
 | Service UUID | `ac4a9f3c-6c4a-4f33-aaae-b650f17d6390` |
 | LED state characteristic UUID | `ac4a9f3c-6c4a-4f33-aaae-b650f17d6391` |
-| Read | One byte, `00` for off or `01` for on |
-| Write with response | One raw hex byte, `00` for off or `01` for dim red |
+| Read | One byte: `00` off, `01` red, `02` green, or `03` blue |
+| Write with response | One raw hex byte: `00` off, `01` red, `02` green, or `03` blue |
 
 To test from Android, turn on Bluetooth and use a BLE scanner such as Nordic
 Semiconductor's nRF Connect for Mobile. Grant the requested Bluetooth
@@ -120,7 +120,8 @@ under **Applications**. Opening it there worked after Android scanned it.
    Android 10 or 11, turn on **Location** and grant location access while
    using the app so Android allows BLE scanning. The app searches for the
    project service and reads the current LED state.
-3. Tap **Turn LED on** and confirm the onboard LED glows dim red and the app
-   reports that it is on. Tap **Turn LED off** and confirm it goes dark.
+3. Tap **Red**, **Green**, and **Blue** in turn. Check that the onboard LED
+   matches the app's reported color each time. Tap **Off** and check that it
+   goes dark. Green and blue require the updated BLE sketch on the ESP32.
 4. Disconnect and connect again to check that the app finds the board and
    shows the current state.
